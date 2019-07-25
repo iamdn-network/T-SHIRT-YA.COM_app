@@ -1,0 +1,1464 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width,viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<meta http-equiv="Content-Security-Policy" content="default-src * data: gap: https://ssl.gstatic.com; style-src * 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval'">
+<script src="lib/angular/angular.min.js"></script>
+<script src="components/loader.js"></script>
+<script src="components/monaca-onsenui/js/angular-onsenui.js"></script>
+<script src="js/jquery-barcode.js"></script>
+<link rel="stylesheet" href="components/loader.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/style.css">
+
+<script src="js/jquery.sliderPro.min.js"></script>
+<link rel="stylesheet" href="css/slider-pro.min.css">
+
+<script src="js/slick.min.js"></script>
+<link rel="stylesheet" href="css/slick.css">
+<link rel="stylesheet" href="css/slick-theme.css">
+  
+<script>
+ons.bootstrap();
+window.fn = {};
+
+window.fn.toggleMenu = function () {
+  document.getElementById('appSplitter').left.toggle();
+};
+
+window.fn.loadView = function (index) {
+  document.getElementById('appTabbar').setActiveTab(index);
+  document.getElementById('sidemenu').close();
+};
+
+window.fn.loadLink = function (url) {
+  window.open(url, '_blank', 'location=no,closebuttoncaption=閉じる');
+};
+window.fn.loadLink_system = function (url) {
+  window.open(url, '_system', 'location=yes');
+};
+
+window.fn.pushPage = function (page, anim) {
+  if (anim) {
+    document.getElementById('appNavigator').pushPage(page.id, { data: { title: page.title }, animation: anim });
+  } else {
+    document.getElementById('appNavigator').pushPage(page.id, { data: { title: page.title } });
+  }
+};
+
+/** 会員情報関連 **/
+var KEY = 'TEELAB';
+var LS_CHECK;
+/* ファンクション：値の存在確認 */
+function LS_CHECK( key ) {
+	/** ストレージに値があるかの確認 **/
+	var LS_Value = LS_GetItem( KEY );
+	
+	if ( LS_Value === undefined || LS_Value == null ) {
+		/** バーコードの設定無し → 会員情報発行 **/
+		$.ajax({
+			url: 'https://www.plat-okinawa.jp/?action_web_api_appli_file=1&url=barcode_issue', // ★
+			
+			type:'GET',
+			dataType: 'json',
+			timeout:10000,
+		}).then(
+			function(data) { // 通信成功時
+				if ( data.barcode ) {
+					LS_SetItem( KEY, data );
+					location.reload();
+					
+					AUTH_INFO = LS_GetItem( KEY );
+				} else {
+          alert(data);
+				}
+			},
+			function(data) { // 通信失敗時
+			alert("通信に失敗しました");
+		});
+		
+		return false;
+		
+	} else {
+		/** バーコードの設定あり → 会員情報取得 **/
+		$.ajax({
+			url: 'https://www.plat-okinawa.jp/?action_web_api_appli_file=1&url=customer_ref&barcode=' + LS_Value.barcode,  // ★
+			type:'GET',
+			dataType: 'json',
+			timeout:10000,
+		}).then(
+			function(data) { // 通信成功時
+				if ( data.total_count == 1 ) {
+					data.result[0]['barcode'] = data.result[0]['customerCode'];
+					LS_SetItem( KEY, data.result[0] );
+					AUTH_INFO = LS_GetItem( KEY );
+				} else {
+					/* 再度実行 */
+					return LS_CHECK( KEY );
+				}
+			},
+			function(data) { // 通信失敗時
+				alert("再取得に失敗しました");
+		});
+		AUTH_INFO = LS_GetItem( KEY );
+		
+	}
+	
+	return AUTH_INFO;
+}
+
+
+/* ファンクション：値のセット */
+function LS_SetItem( key, obj ) {
+	localStorage.setItem(key, JSON.stringify(obj));
+}
+
+/* ファンクション：値の取得 */
+function LS_GetItem( key ) {
+	var item = localStorage.getItem( key );
+	var obj = JSON.parse(item);
+	return obj;
+}
+
+/* ファンクション：指定されたキー名のデータ消去 */
+function LS_RemoveItem( key ) {
+	localStorage.removeItem( key );
+	$('#strage').html("1件削除");
+}
+
+/* ファンクション：全データ消去 */
+function LS_Clear() {
+	localStorage.clear();
+	$('#strage').html("全削除");
+}
+
+/* iphone X */
+document.addEventListener('DOMContentLoaded', function() {
+    if (isIPhoneX()) {
+      document.documentElement.className = "iphonex";
+    }
+  }, false);
+
+  function isIPhoneX() {
+    return isIPhone() && (window.screen.width === 375 && window.screen.height === 812 || window.screen.width === 812 && window.screen.height === 375);
+  }
+
+  function isIPhone() {
+    return !!(navigator.userAgent.match(/iPhone/i));
+
+  }
+</script>
+</head>
+<body>
+
+<!-- base navigator -->
+<ons-navigator id="appNavigator" swipeable swipe-target-width="80px">
+    <ons-page>
+        <ons-splitter id="appSplitter">
+            <ons-splitter-side id="sidemenu" page="sidemenu.html" swipeable side="left" collapse="" width="260px"></ons-splitter-side>
+            <ons-splitter-content page="tabbar.html"></ons-splitter-content>
+        </ons-splitter>
+    </ons-page>
+</ons-navigator>
+<!-- //base navigator --> 
+
+<!-- tabbar -->
+<template id="tabbar.html">
+    <ons-page id="tabbar-page">
+        <ons-toolbar>
+            <div class="left">
+                <ons-toolbar-button onclick="fn.toggleMenu()">
+                    <ons-icon icon="ion-navicon, material:md-menu"></ons-icon>
+                </ons-toolbar-button>
+            </div>
+            <div class="center">
+                <div class="logo"></div>
+            </div>
+        </ons-toolbar>
+        <ons-tabbar swipeable id="appTabbar" position="auto">
+            <ons-tab label="マイページ" icon="ion-person" page="home.html" active></ons-tab>
+            <ons-tab label="商品" icon="ion-tshirt" page="shop_item.html"></ons-tab>
+            <ons-tab label="店舗" icon="ion-android-map" page="shop.html"></ons-tab>
+            <ons-tab label="お知らせ" icon="ion-speakerphone" page="news.html"></ons-tab>
+            <ons-tab label="クーポン" icon="ion-star" page="coupon.html"></ons-tab>
+        </ons-tabbar>
+    </ons-page>
+</template>
+<!-- //tabbar --> 
+
+<!-- sidemenu -->
+<template id="sidemenu.html">
+    <ons-page>
+        <div class="tac mgtb10"> <img src="image/logo.png" width="80%"> </div>
+        <ons-list-title>MENU</ons-list-title>
+        <ons-list>
+            <ons-list-item onclick="fn.loadView(0)">
+                <div class="left">
+                    <ons-icon fixed-width class="list-item__icon" icon="ion-person"></ons-icon>
+                </div>
+                <div class="center">マイページ</div>
+                <div class="right">
+                    <ons-icon icon="fa-link"></ons-icon>
+                </div>
+            </ons-list-item>
+            <ons-list-item onclick="fn.loadView(1)">
+                <div class="left">
+                    <ons-icon fixed-width class="list-item__icon" icon="ion-tshirt"></ons-icon>
+                </div>
+                <div class="center">商品</div>
+                <div class="right">
+                    <ons-icon icon="fa-link"></ons-icon>
+                </div>
+            </ons-list-item>
+            <ons-list-item onclick="fn.loadView(2)">
+                <div class="left">
+                    <ons-icon fixed-width class="list-item__icon" icon="ion-android-map"></ons-icon>
+                </div>
+                <div class="center">店舗</div>
+                <div class="right">
+                    <ons-icon icon="fa-link"></ons-icon>
+                </div>
+            </ons-list-item>
+            <ons-list-item onclick="fn.loadView(3)">
+                <div class="left">
+                    <ons-icon fixed-width class="list-item__icon" icon="ion-speakerphone"></ons-icon>
+                </div>
+                <div class="center">お知らせ</div>
+                <div class="right">
+                    <ons-icon icon="fa-link"></ons-icon>
+                </div>
+            </ons-list-item>
+            <ons-list-item onclick="fn.loadView(4)">
+                <div class="left">
+                    <ons-icon fixed-width class="list-item__icon" icon="ion-star"></ons-icon>
+                </div>
+                <div class="center">クーポン</div>
+                <div class="right">
+                    <ons-icon icon="fa-link"></ons-icon>
+                </div>
+            </ons-list-item>
+            <ons-list-item onclick="location.reload();" class="reload">
+                <div class="left">
+                    <ons-icon fixed-width class="list-item__icon" icon="rotate-right"></ons-icon>
+                </div>
+                <div class="center">再読み込み</div>
+                <div class="right">
+                    <ons-icon icon="fa-rotate-right"></ons-icon>
+                </div>
+            </ons-list-item>
+        </ons-list>
+        
+      	<ons-list-title style="margin-top: 10px">SNS</ons-list-title>
+        <ons-list>
+            <ons-list-item onclick="fn.loadLink_system('https://twitter.com/tshirtyacom')">
+                <div class="left">
+                    <ons-icon fixed-width class="list-item__icon" icon="ion-social-twitter"></ons-icon>
+                </div>
+                <div class="center"> Twitter </div>
+                <div class="right">
+                    <ons-icon icon="fa-external-link"></ons-icon>
+                </div>
+            </ons-list-item>
+            <ons-list-item onclick="fn.loadLink_system('https://www.facebook.com/TSHIRTYACOM/')">
+                <div class="left">
+                    <ons-icon fixed-width class="list-item__icon" icon="ion-social-facebook"></ons-icon>
+                </div>
+                <div class="center"> facebook </div>
+                <div class="right">
+                    <ons-icon icon="fa-external-link"></ons-icon>
+                </div>
+            </ons-list-item>
+            <ons-list-item onclick="fn.loadLink_system('https://www.instagram.com/explore/tags/tshirtyacom/')">
+                <div class="left">
+                    <ons-icon fixed-width class="list-item__icon" icon="ion-social-instagram"></ons-icon>
+                </div>
+                <div class="center"> Instagram </div>
+                <div class="right">
+                    <ons-icon icon="fa-external-link"></ons-icon>
+                </div>
+            </ons-list-item>
+        </ons-list>
+        <script>
+		  ons.getScriptPage().onInit = function() {
+			this.parentElement.setAttribute('animation', ons.platform.isAndroid() ? 'overlay' : 'reveal');
+		  };
+		</script>
+			<style>
+		  ons-list-item {
+			color: #444;
+		  }
+		</style>
+    </ons-page>
+</template>
+<!-- //sidemenu --> 
+
+<!-- home -->
+<template id="home.html">
+    <ons-page> 
+        <div class="content tac">
+          <p class="lead_welcome">ようこそ、<strong>ゲスト</strong>さま</p>
+          <p class="point"><strong>0</strong>ポイント</p>
+          <div class="barcode_wrap">
+            <p class="fsr10">会員番号 NO.<span id="barcode_text"></span></p>
+
+            <div id="barcode_box__message" class="barcode_message"> 
+              <!-- # バーコードをここに表示します # --> 
+            </div>
+          </div>
+          <p class="fsr12 mgb20">※店舗でお会計の際にこちらのバーコードを<br>
+            レジスタッフにご提示ください</p>
+
+          <p class="tac js-link_new" style="display:none;"><ons-button modifier="large" class="js-pop_box" data-href="#new_member_box">新規会員登録</ons-button></p>
+          <p class="tac js-link_update" style="display:none;"><ons-button modifier="large" class="js-pop_box" data-href="#new_member_box">会員情報更新</ons-button></p>
+
+          <ul class="banner_area" style="display: none;">
+            <!-- # バナーをここに表示します # --> 
+          </ul>
+
+          <!-- new_member_box -->
+          <div id="new_member_box" class="pop_box" style="display: none;">
+              <div class="pop_box_close"><ons-icon icon="fa-times-circle"></ons-icon></div>
+              <p class="page_ttl mgt0">新規会員登録</p>
+              <p class="fsr13">必須項目は必ず入力して下さい。</p>
+
+              <form action="" class="form new_member">
+                  <input type="hidden" name="customerId" value="" data-required="required" data-validation="num" data-elem="hidden" data-name="会員ID" data-label="inputInfo">
+                  <input type="hidden" name="customerCode" value="" data-required="required" data-validation="num" data-elem="hidden" data-name="会員コード" data-label="inputInfo">
+                  <dl>
+                      <dt class="icon_required">お名前</dt>
+                      <dd>
+                          <div class="twin">
+                              <input name="lastName" type="text" value="" placeholder="姓" data-required="required" data-elem="text" data-name="お名前（姓）" data-label="inputInfo">
+                              <input name="firstName" type="text" value="" placeholder="名" data-required="required" data-elem="text" data-name="お名前（名）" data-label="inputInfo">
+                          </div>
+                      </dd>
+                  </dl>
+                  <dl>
+                      <dt class="icon_required">フリガナ</dt>
+                      <dd>
+                          <div class="twin">
+                              <input name="lastKana" type="text" value="" placeholder="セイ" data-required="required" data-validation="kana" data-elem="text" data-name="フリガナ（姓）" data-label="inputInfo">
+                              <input name="firstKana" type="text" value="" placeholder="メイ" data-required="required" data-validation="kana" data-elem="text" data-name="フリガナ（名）" data-label="inputInfo">
+                          </div>
+                      </dd>
+                  </dl>
+                  <dl>
+                      <dt class="icon_required">メールアドレス</dt>
+                      <dd>
+                          <input name="mailAddress" type="email" value="" placeholder="例：xxxxx@xxxx.co.jp" data-required="required" data-validation="email" data-elem="text" data-name="メールアドレス" data-label="inputInfo">
+                          <p class="fsr12">携帯メールアドレスでご利用頂く場合、「@t-shirt-ya.com」からの着信許可の設定後にご登録ください</p>
+                      </dd>
+                  </dl>
+                  <dl data-mode-for="add">
+                      <dt class="icon_required">パスワード</dt>
+                      <dd>
+                          <input name="pinCode" type="password" value="" data-required="required" data-validation="password" data-elem="password" data-name="パスワード" maxlength="20" data-label="inputInfo">
+                          <p class="fsr12">半角英数字6文字以上、20文字以内で入力して下さい</p>
+                      </dd>
+                  </dl>
+                  <dl data-mode-for="add">
+                      <dt class="icon_required">パスワード確認用</dt>
+                      <dd>
+                          <input name="pinCodeCnf" type="password" value="" data-required="required" data-validation="re-password" data-elem="password" data-name="パスワード確認用" maxlength="20" data-label="inputInfo">
+                          <p class="fsr12">確認のため、同じパスワードをもう一度入力して下さい</p>
+                      </dd>
+                  </dl>
+                  <dl>
+                      <dt>電話番号</dt>
+                      <dd>
+                          <input name="phoneNumber" type="tel" value="" placeholder="例：09012345000" data-validation="phone" data-elem="text" data-name="電話番号" data-label="inputInfo">
+                      </dd>
+                  </dl>
+
+                  <dl>
+                      <dt>郵便番号</dt>
+                      <dd>
+                          <input name="postCode" type="tel" value="" placeholder="例：9000002" data-required="" data-validation="zip" data-elem="text" data-name="郵便番号" data-label="inputInfo">
+                      </dd>
+                  </dl>
+                  <dl>
+                      <dt class="icon_required">都道府県</dt>
+                      <dd>
+                        <select name="address" data-required="required" data-elem="select" data-name="住所" data-label="inputInfo">
+                          <option value="">選択して下さい</option>
+                            <option value="北海道">北海道</option>
+                            <option value="青森県">青森県</option>
+                            <option value="岩手県">岩手県</option>
+                            <option value="宮城県">宮城県</option>
+                            <option value="秋田県">秋田県</option>
+                            <option value="山形県">山形県</option>
+                            <option value="福島県">福島県</option>
+                            <option value="茨城県">茨城県</option>
+                            <option value="栃木県">栃木県</option>
+                            <option value="群馬県">群馬県</option>
+                            <option value="埼玉県">埼玉県</option>
+                            <option value="千葉県">千葉県</option>
+                            <option value="東京都">東京都</option>
+                            <option value="神奈川県">神奈川県</option>
+                            <option value="新潟県">新潟県</option>
+                            <option value="富山県">富山県</option>
+                            <option value="石川県">石川県</option>
+                            <option value="福井県">福井県</option>
+                            <option value="山梨県">山梨県</option>
+                            <option value="長野県">長野県</option>
+                            <option value="岐阜県">岐阜県</option>
+                            <option value="静岡県">静岡県</option>
+                            <option value="愛知県">愛知県</option>
+                            <option value="三重県">三重県</option>
+                            <option value="滋賀県">滋賀県</option>
+                            <option value="京都府">京都府</option>
+                            <option value="大阪府">大阪府</option>
+                            <option value="兵庫県">兵庫県</option>
+                            <option value="奈良県">奈良県</option>
+                            <option value="和歌山県">和歌山県</option>
+                            <option value="鳥取県">鳥取県</option>
+                            <option value="島根県">島根県</option>
+                            <option value="岡山県">岡山県</option>
+                            <option value="広島県">広島県</option>
+                            <option value="山口県">山口県</option>
+                            <option value="徳島県">徳島県</option>
+                            <option value="香川県">香川県</option>
+                            <option value="愛媛県">愛媛県</option>
+                            <option value="高知県">高知県</option>
+                            <option value="福岡県">福岡県</option>
+                            <option value="佐賀県">佐賀県</option>
+                            <option value="長崎県">長崎県</option>
+                            <option value="熊本県">熊本県</option>
+                            <option value="大分県">大分県</option>
+                            <option value="宮崎県">宮崎県</option>
+                            <option value="鹿児島県">鹿児島県</option>
+                            <option value="沖縄県">沖縄県</option>
+                            <option value="海外">海外</option>
+                          </select>
+                      </dd>
+                  </dl>
+
+                  <dl>
+                      <dt class="icon_required">性別</dt>
+                      <dd>
+                          <div class="">
+                              <label class="mgr10"><input type="radio" name="sex" value="1" data-required="required" data-elem="radio" data-name="性別" data-label="inputInfo"><span class="l">男</span></label>
+                              <label><input type="radio" name="sex" value="2" data-required="" data-elem="radio" data-name="性別"><span class="l">女</span></label>
+                          </div>
+                      </dd>
+                  </dl>
+                  <dl>
+                      <dt class="icon_required">生年月日</dt>
+                      <dd>
+                          <input name="birthDate" type="hidden" value="" data-required="" data-validation="date" data-elem="hidden" data-name="生年月日" data-label="inputInfo">
+
+
+                          <select name="date[year]" class="date_select" data-required="required" data-name="生年月日（年）" data-label="inputInfo" data-elem="select">
+                              <option value="">-</option>
+                              <option value="1918">1918</option>
+                              <option value="1919">1919</option>
+                              <option value="1920">1920</option>
+                              <option value="1921">1921</option>
+                              <option value="1922">1922</option>
+                              <option value="1923">1923</option>
+                              <option value="1924">1924</option>
+                              <option value="1925">1925</option>
+                              <option value="1926">1926</option>
+                              <option value="1927">1927</option>
+                              <option value="1928">1928</option>
+                              <option value="1929">1929</option>
+                              <option value="1930">1930</option>
+                              <option value="1931">1931</option>
+                              <option value="1932">1932</option>
+                              <option value="1933">1933</option>
+                              <option value="1934">1934</option>
+                              <option value="1935">1935</option>
+                              <option value="1936">1936</option>
+                              <option value="1937">1937</option>
+                              <option value="1938">1938</option>
+                              <option value="1939">1939</option>
+                              <option value="1940">1940</option>
+                              <option value="1941">1941</option>
+                              <option value="1942">1942</option>
+                              <option value="1943">1943</option>
+                              <option value="1944">1944</option>
+                              <option value="1945">1945</option>
+                              <option value="1946">1946</option>
+                              <option value="1947">1947</option>
+                              <option value="1948">1948</option>
+                              <option value="1949">1949</option>
+                              <option value="1950">1950</option>
+                              <option value="1951">1951</option>
+                              <option value="1952">1952</option>
+                              <option value="1953">1953</option>
+                              <option value="1954">1954</option>
+                              <option value="1955">1955</option>
+                              <option value="1956">1956</option>
+                              <option value="1957">1957</option>
+                              <option value="1958">1958</option>
+                              <option value="1959">1959</option>
+                              <option value="1960">1960</option>
+                              <option value="1961">1961</option>
+                              <option value="1962">1962</option>
+                              <option value="1963">1963</option>
+                              <option value="1964">1964</option>
+                              <option value="1965">1965</option>
+                              <option value="1966">1966</option>
+                              <option value="1967">1967</option>
+                              <option value="1968">1968</option>
+                              <option value="1969">1969</option>
+                              <option value="1970">1970</option>
+                              <option value="1971">1971</option>
+                              <option value="1972">1972</option>
+                              <option value="1973">1973</option>
+                              <option value="1974">1974</option>
+                              <option value="1975">1975</option>
+                              <option value="1976">1976</option>
+                              <option value="1977">1977</option>
+                              <option value="1978">1978</option>
+                              <option value="1979">1979</option>
+                              <option value="1980">1980</option>
+                              <option value="1981">1981</option>
+                              <option value="1982">1982</option>
+                              <option value="1983">1983</option>
+                              <option value="1984">1984</option>
+                              <option value="1985">1985</option>
+                              <option value="1986">1986</option>
+                              <option value="1987">1987</option>
+                              <option value="1988">1988</option>
+                              <option value="1989">1989</option>
+                              <option value="1990">1990</option>
+                              <option value="1991">1991</option>
+                              <option value="1992">1992</option>
+                              <option value="1993">1993</option>
+                              <option value="1994">1994</option>
+                              <option value="1995">1995</option>
+                              <option value="1996">1996</option>
+                              <option value="1997">1997</option>
+                              <option value="1998">1998</option>
+                              <option value="1999">1999</option>
+                              <option value="2000">2000</option>
+                              <option value="2001">2001</option>
+                              <option value="2002">2002</option>
+                              <option value="2003">2003</option>
+                              <option value="2004">2004</option>
+                              <option value="2005">2005</option>
+                              <option value="2006">2006</option>
+                              <option value="2007">2007</option>
+                              <option value="2008">2008</option>
+                              <option value="2009">2009</option>
+                              <option value="2010">2010</option>
+                              <option value="2011">2011</option>
+                              <option value="2012">2012</option>
+                              <option value="2013">2013</option>
+                              <option value="2014">2014</option>
+                              <option value="2015">2015</option>
+                              <option value="2016">2016</option>
+                              <option value="2017">2017</option>
+                              <option value="2018">2018</option>
+                              </select>　年
+
+                          <select name="date[month]" class="date_select" data-required="required" data-name="生年月日（月）" data-label="inputInfo" data-elem="select">
+                              <option value="">-</option>
+                              <option value="01">1</option>
+                              <option value="02">2</option>
+                              <option value="03">3</option>
+                              <option value="04">4</option>
+                              <option value="05">5</option>
+                              <option value="06">6</option>
+                              <option value="07">7</option>
+                              <option value="08">8</option>
+                              <option value="09">9</option>
+                              <option value="10">10</option>
+                              <option value="11">11</option>
+                              <option value="12">12</option>
+                          </select>　月
+
+
+                          <select name="date[day]" class="date_select" data-required="required" data-name="生年月日（日）" data-label="inputInfo" data-elem="select">
+                              <option value="">-</option>
+                              <option value="01">1</option>
+                              <option value="02">2</option>
+                              <option value="03">3</option>
+                              <option value="04">4</option>
+                              <option value="05">5</option>
+                              <option value="06">6</option>
+                              <option value="07">7</option>
+                              <option value="08">8</option>
+                              <option value="09">9</option>
+                              <option value="10">10</option>
+                              <option value="11">11</option>
+
+                              <option value="12">12</option>
+                              <option value="13">13</option>
+                              <option value="14">14</option>
+                              <option value="15">15</option>
+                              <option value="16">16</option>
+                              <option value="17">17</option>
+                              <option value="18">18</option>
+                              <option value="19">19</option>
+                              <option value="20">20</option>
+                              <option value="21">21</option>
+                              <option value="22">22</option>
+                              <option value="23">23</option>
+                              <option value="24">24</option>
+                              <option value="25">25</option>
+                              <option value="26">26</option>
+                              <option value="27">27</option>
+                              <option value="28">28</option>
+                              <option value="29">29</option>
+                              <option value="30">30</option>
+                              <option value="31">31</option>
+                              </select>　日
+                      </dd>
+                  </dl>
+                  <dl>
+                      <dt>マイストア</dt>
+                      <dd>
+                          <select name="storeId" data-required="" data-elem="text" data-name="マイストア" data-label="inputInfo">
+                            <option value="">全店舗</option>
+                            <option value="1">国際通り店</option>
+                            <option value="2">北谷店</option>
+                            <option value="3">イオンモールライカム店</option>
+                            <option value="4">久茂地店</option>
+                            <option value="8">パルコシティ店</option>
+                          </select>
+                      </dd>
+                  </dl>
+                  <dl>
+                      <dt>案内メール受取</dt>
+                      <dd>
+                          <div class="">
+                              <label class="mgr10"><input type="radio" name="mailReceiveFlag" value="1" data-required="" data-elem="radio" data-name="案内メール受取" data-label="inputInfo" checked><span class="l">許可</span></label>
+                              <label><input type="radio" name="mailReceiveFlag" value="0" data-required="" data-elem="radio" data-name="案内メール受取"><span class="l">拒否</span></label>
+                          </div>
+                      </dd>
+                  </dl>
+                  <dl data-mode-for="add">
+                      <dt class="icon_required">利用規約</dt>
+                      <dd>
+                          <div class="scroll_box">
+                              <p><strong>プライバシーについて</strong></p>
+                              <p>個人情報の取り扱いには厳重に管理しております。
+                              また収集についても商品の発送に必要最低限にとどめております。
+                              収集した情報は、無断で第三者に提供することはありませんので安心してご利用ください。</p>
+                          </div>
+                          <div class="border_on">
+                              <label><input name="confirm" type="checkbox" value="利用規約確認済み" data-required="required" data-elem="checkbox" data-name="利用規約" data-label="inputInfo">上記、利用規約の内容を確認の上、チェックを入れてください</label>
+                          </div>
+                      </dd>
+                  </dl>
+
+                  <div class="input_error" style="display: none;">
+                    <p>入力エラーがあります。</p>
+                    <ul class="error_messages">
+                    </ul>
+                  </div>
+
+                  <p class="tac"><input type="submit" value="登録" class="btn_submit" data-action="saveInfo" data-type="add"></p>
+              </form>
+          </div>
+          <!-- //new_member_box -->
+
+          <p class="icon_reload"><ons-icon fixed-width class="list-item__icon" icon="rotate-right" onclick="location.reload();"></ons-icon></p>
+			
+        </div>
+        
+        <script>
+            $(function(){
+			
+              /* Local Storage で初期値の確認.begin */
+              var KEY = 'TEELAB';
+              var AUTH_INFO = LS_CHECK( KEY ); // 認証情報（オブジェクト）
+
+              if ( AUTH_INFO === undefined  ){
+                /* 念のため再取得 */
+                AUTH_INFO = LS_CHECK( KEY );
+              }
+
+              //mypage.html barcode
+              $('#barcode_text').html(AUTH_INFO.barcode);
+              $("#barcode_box__message").barcode(AUTH_INFO.barcode, "ean13");
+              if ( AUTH_INFO.lastName === undefined || AUTH_INFO.lastName.length == 0 || AUTH_INFO.lastName == '' || AUTH_INFO.lastName == null ) {
+                AUTH_INFO.lastName = 'ゲスト';
+              }
+              $("p.lead_welcome > strong").html(AUTH_INFO.lastName);
+              if ( AUTH_INFO.point === undefined || AUTH_INFO.point == '' || AUTH_INFO.point == null ) {
+                AUTH_INFO.point = 0;
+              }
+
+              $("p.point > strong").html(AUTH_INFO.point);
+              if( AUTH_INFO.point > 0){
+                $("p.point > strong").css("color","#CA0915");
+              }
+              /* Local Storage で初期値の確認.end */
+              
+              /* フォーム表示.begin */
+              $(document).on('click','.js-pop_box', function(){
+                  var pop_target = $(this).attr("data-href");
+                  $(pop_target).fadeIn();
+              });
+              $(".pop_box_close").click(function(){
+                  $(this).parent(".pop_box").fadeOut();
+              });
+              /* フォーム表示.end */
+              
+              /* Local Storage の値でフォームの制御.begin */
+                var AUTH_INFO = LS_CHECK( KEY ); // 認証情報（オブジェクト）
+                $('input[name="customerId"]').val(AUTH_INFO.customerId);
+                $('input[name="customerCode"]').val(AUTH_INFO.customerCode);
+              
+              //console.log(AUTH_INFO);
+                
+                if ( AUTH_INFO === undefined || AUTH_INFO === null || ( AUTH_INFO.lastName == 'ゲスト' && AUTH_INFO.firstName == 'アプリ会員' ) ) {
+                  /** 初期登録のまま **/
+                    $('input[name="lastName"]').val();
+                    $('input[name="firstName"]').val();
+                    $('input[name="lastKana"]').val();
+                    $('input[name="firstKana"]').val();
+                    $('input[name="mailAddress"]').val();
+                    $('input[name="pinCode"]').val();
+                    $('input[name="phoneNumber"]').val();
+                    $('input[name="postCode"]').val();
+                    $('select[name="address"] option[value=沖縄県]').prop("selected", true);
+                    $('input[name="sex"][value=1]').prop('checked', true);
+                    $('input[name="birthDate"]').val();
+                    $('select[name="date[year]"] option[value=1980]').prop("selected", true);
+                    $('select[name="date[month]"] option[value=01]').prop("selected", true);
+                    $('select[name="date[day]"] option[value=01]').prop("selected", true);
+
+                    $('input[name="mailReceiveFlag"][value=1]').prop('checked', true);
+                    $('select[name="storeId"] option[value=-1]').prop("selected", true);
+                    
+                    /* ボタンの表示 */
+                    $(".js-link_new").show();
+                    $(".js-link_update").hide();
+                    $('dl[data-mode-for="add"]').show();
+                
+                } else {
+                    /* 初期登録（firstName）更新済み */
+                    $('input[name="lastName"]').val(AUTH_INFO.lastName);
+                    $('input[name="firstName"]').val(AUTH_INFO.firstName);
+                    $('input[name="lastKana"]').val(AUTH_INFO.lastKana);
+                    $('input[name="firstKana"]').val(AUTH_INFO.firstKana);
+                    $('input[name="mailAddress"]').val(AUTH_INFO.mailAddress);
+                    $('input[name="pinCode"]').val(AUTH_INFO.pinCode); // 出していいのか？ダメだろぅ
+                    $('input[name="phoneNumber"]').val(AUTH_INFO.phoneNumber);
+                    $('input[name="postCode"]').val(AUTH_INFO.postCode);
+                    $('select[name="address"] option[value=' + AUTH_INFO.address + ']').prop("selected", true);  
+                    $('input[name="sex"][value=' + AUTH_INFO.sex + ']').prop('checked', true);
+                    $('input[name="birthDate"]').val(AUTH_INFO.birthDate);
+                    
+                    var _birthday = $('input[name="birthDate"]').val();
+                    if ( _birthday.length > 0 ) {
+                      _birthday = _birthday.split('-');
+                      
+                      $('select[name="date[year]"] option[value='+_birthday[0]+']').prop("selected", true);
+                      $('select[name="date[month]"] option[value='+_birthday[1]+']').prop("selected", true);
+                      $('select[name="date[day]"] option[value='+_birthday[2]+']').prop("selected", true);
+                    }
+                    $('input[name="mailReceiveFlag"][value=' + AUTH_INFO.mailReceiveFlag + ']').prop('checked', true);
+                    $('select[name="storeId"] option[value=' + AUTH_INFO.storeId + ']').prop("selected", true);
+                  
+                    /* ボタンの表示 */
+                    $(".js-link_new").hide();
+                    $(".js-link_update").show();
+                    $('dl[data-mode-for="add"]').hide();
+                }
+
+                /* Local Storage の値でフォームの制御.end */
+
+
+                //console.log('会員状態に応じたバナー取得処理 . begin');
+                /* バナーエリアの情報取得.begin */
+                if ( AUTH_INFO.barcode !== undefined ) {
+                    $.ajax({
+                        url: 'https://www.plat-okinawa.jp/?action_web_api_appli_banner=1&code=' + AUTH_INFO.barcode,
+                        type:'GET',
+                        dataType: 'json',
+                        timeout:10000,
+                    }).done(function(data) {
+                        //console.log(data);
+                        if ( data.length > 0 ) {
+                          /* データが返却されました！ */
+                            var html = '';
+                            for(var i in data){
+                              html += '<li>' + data[i] + '</li>';
+                            }
+                            $('ul.banner_area').append(html).show();
+                          setTimeout(function(){
+                            //slideshow
+                            var sliderImg = $('.banner_area li').length;
+                            if(sliderImg > 1){
+                              $('.banner_area').slick({
+                                dots: true
+                              });
+                            }
+                          },1000);
+                        } else {
+                          /** 返り値が0件なので何もしない **/
+                          //console.log('バナー取得結果 : 0件');
+                        }
+                        
+                    }).fail(function(data) {
+                        /** エラーだけど何もしない **/
+                        console.log('バナー取得エラー : ' + 'https://www.plat-okinawa.jp/?action_web_api_appli_banner=1&code=' + AUTH_INFO.barcode);
+                    }).always(function(data) {
+                    });
+                }
+                /* バナーエリアの情報取得.end */
+
+                /* 会員情報更新ボタン押下 : バリデーションチェック等の実行.begin */
+                $('input[type=submit][data-action="saveInfo"]').click(function(){
+                    $('ul.error_messages').empty();
+                    $('.input_error').hide();
+                    var type = $(this).data('type');
+                    
+                    /**  日付データ組み立て **/
+                    if ( $('select[name="date[year]"]').val() != '' && $('select[name="date[month]"]').val() != '' && $('select[name="date[day]"]').val() != '' ) {
+                        var _date = $('select[name="date[year]"]').val() + '-' + $('select[name="date[month]"]').val() + '-' + $('select[name="date[day]"]').val();
+                        
+                        /** 今日より前か判定 **/
+                        var now = new Date();
+                        var today_y = now.getFullYear().toString();
+                        var today_m = now.getMonth().toString();
+                        today_m = ( today_m.length == '1' ) ? '0' + today_m  : today_m;
+                        var today_d = now.getDate().toString();
+                        today_d = ( today_d.length == '1' ) ? '0' + today_d  : today_d;
+                        var today   = today_y + '-' + today_m + '-' + today_d;
+
+                        if ( today.replace('-','') > _date.replace('-','') && isDate ( _date ) ) {
+                            $('input[name="birthDate"]').val( _date );
+                        }
+                    }
+                    
+                    var isError   = 0; // エラーチェック
+                    var errorMsg  = '';
+
+                    var _required = new Array();
+                    _required['text']     = '入力';
+                    _required['password'] = '入力';
+                    _required['hidden']   = '入力';
+                    _required['radio']    = '選択';
+                    _required['checkbox'] = '選択';
+                    _required['select']   = '選択';
+
+                    $('[data-label="inputInfo"]').each(function(){
+                        var elem = $(this).data('elem');
+
+                        if ( $(this).is(':visible') || elem == 'hidden' ) {
+                            if ( $(this).data('required') !== undefined &&  $(this).data('required') == 'required' ) {
+                                /* 必須チェック */
+                                if ( ( elem == 'text' || elem == 'number' || elem == 'password' || elem == 'select' ) && $(this).val() == '' ) {
+                                    isError = 1;
+                                    errorMsg += '<li>' + $(this).data('name') + 'が' + _required[elem] + 'されていません</li>';
+                                } else if ( ( elem == 'radio' || elem == 'checkbox' ) && $('input[name="' + $(this).attr('name') + '"]').is(':checked') == false ) {
+                                    isError = 1;
+                                    errorMsg += '<li>' + $(this).data('name') + 'が' + _required[elem] + 'されていません</li>';
+                                }
+                            }
+
+
+                            if ( $(this).data('validation') !== undefined &&  $(this).data('validation') == 'kana' && $(this).val() != '' && ( $(this).val().match(/^[\u30a0-\u30ff]+$/) == null ||  $(this).val().match(/^[\u30a0-\u30ff]+$/) == false ) ) {
+                                /* バリデーション : カナ */
+                                isError = 1;
+                                errorMsg += '<li>' + $(this).data('name') + 'の形式が正しくありません</li>';
+                            }
+
+                            if ( $(this).data('validation') !== undefined &&  $(this).data('validation') == 'email' && $(this).val() != '' && ( $(this).val().match(/^[-a-z0-9~!$%^&*_=+}{\'?]+(\.[-a-z0-9~!$%^&*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$/i) == null ||  $(this).val().match(/^[-a-z0-9~!$%^&*_=+}{\'?]+(\.[-a-z0-9~!$%^&*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$/i) == false ) ) {
+                                /* バリデーション : メールアドレス */
+                                isError = 1;
+                                errorMsg += '<li>' + $(this).data('name') + 'の形式が正しくありません</li>';
+                            }
+                            
+                            if ( $(this).data('validation') !== undefined &&  $(this).data('validation') == 'password' && $(this).val() != '' && ( $(this).val().match(/^[0-9a-zA-Z]{6,20}$/) == null ||  $(this).val().match(/^[0-9a-zA-Z]{6,20}$/) == false ) ) {
+                                /* バリデーション : パスワード */
+                                isError = 1;
+                                errorMsg += '<li>' + $(this).data('name') + 'の形式が正しくありません</li>';
+                            }
+                            
+                            if ( $(this).data('validation') !== undefined &&  $(this).data('validation') == 're-password' && $(this).val() != '' && $('input[name="pinCode"]').val() != '' && $(this).val() != $('input[name="pinCode"]').val() ) {
+                                /* バリデーション : パスワード（確認用） */
+                                isError = 1;
+                                errorMsg += '<li>' + $(this).data('name') + 'が一致しません</li>';
+                            }
+                            
+                            if ( $(this).data('validation') !== undefined &&  $(this).data('validation') == 'phone' && $(this).val() != '' && ( $(this).val().match(/^[0-9]{1,4}[\-\－ー]?[0-9]{1,5}[\-\－ー]?[0-9]{1,4}$/) == null ||  $(this).val().match(/^[0-9]{1,4}[\-\－ー]?[0-9]{1,5}[\-\－ー]+?[0-9]{1,4}$/) == false ) ) {
+                                /* バリデーション : 電話番号 */
+                                isError = 1;
+                                errorMsg += '<li>' + $(this).data('name') + 'の形式が正しくありません</li>';
+                            }
+
+                            if ( $(this).data('validation') !== undefined &&  $(this).data('validation') == 'zip' && $(this).val() != '' && ( $(this).val().match(/^[0-9]{3}[\-\－ー]?[0-9]{4}$/) == null ||  $(this).val().match(/^[0-9]{3}[\-\－ー]?[0-9]{4}$/) == false ) ) {
+                                /* バリデーション : 郵便番号 */
+                                isError = 1;
+                                errorMsg += '<li>' + $(this).data('name') + 'の形式が正しくありません</li>';
+                            }
+
+                            if ( $(this).data('validation') !== undefined &&  $(this).data('validation') == 'date' && $(this).val() != '' && ( $(this).val().match(/^[0-9]{4}[\-\－ー/]{1}[0-9]{1,2}[\-\－ー/]{1}[0-9]{1,2}$/) == null ||  $(this).val().match(/^[0-9]{4}[\-\－ー/]{1}[0-9]{1,2}[\-\－ー/]{1}[0-9]{1,2}$/) == false ) ) {
+                                /* バリデーション : 日付 */
+                                /* ToDo 日付チェック / 今より前（もしくは何歳より上）か確認 */
+                                isError = 1;
+                                errorMsg += '<li>' + $(this).data('name') + 'の形式が正しくありません</li>';
+                            }
+                        }
+
+                    });
+
+                    if ( isError ) {
+                        $('.input_error').show();
+                        $('ul.error_messages').append(errorMsg);
+                        $(".page__content").animate({scrollBottom:0},"300");
+                        return false;
+                    } else {
+                        /** 入力OK → スマレジ更新 **/
+                        var formVars = $('form.new_member').serialize();
+
+                        $.ajax({
+                            url: 'https://www.plat-okinawa.jp/',
+                            type:'POST',
+                            data: 'action_web_api_appli_member=1&' + formVars + '&mode=' + type // ここ、新しいプログラムに差し替えてます（あしとみ）
+//                            data: 'action_web_api_appli_post=1&' + formVars + '&mode=' + type
+                        }).then(
+                            function(data) { // 通信成功時
+                                alert("会員情報を更新しました");
+                                console.log('通信成功ブロック');
+                                //$(".lead_welcome > strong").html($('input[name="lastName"]').val());
+                                
+                                /** Local Strage に会員情報を再格納 **/
+                                LS_CHECK( KEY );
+                                
+                                $(".pop_box").fadeOut();
+                            }, 
+                            function(data) { // 通信失敗時
+                                alert("会員情報を更新しました。");
+                                console.log('通信失敗ブロック');
+                                //$(".lead_welcome > strong").html($('input[name="lastName"]').val());
+                              
+                                /** Local Strage に会員情報を再格納 **/
+                                LS_CHECK( KEY );
+                                
+                                $(".pop_box").fadeOut();
+                              
+                      });
+                      
+                      setTimeout(function(){
+                          location.reload(true);
+                      },2000);
+                      
+                    }
+
+                    return false;
+                });
+                /* 会員情報更新ボタン押下 : バリデーションチェック等の実行.end */
+                
+                /** 
+                 *  日付の整合性チェック isDate
+                 *  
+                 *  return bool ( false or true )
+                 **/
+                function isDate( date ) {
+                    if ( date == null || date.length != 10 || isNaN(date) ) {
+                        return false;
+                    }
+                    
+                    var y = parseInt(date.substr(0,4));
+                    var m = parseInt(date.substr(5,2));
+                    var d = parseInt(date.substr(8,2));
+                    var dt = new Date(y, m, d);
+                    
+                    return (y == dt.getFullYear() && m == dt.getMonth() && d == dt.getDate());
+                }
+            });
+            </script>
+        
+    </ons-page>
+</template>
+<!-- //home -->
+
+<!-- shop_item-->
+<template id="shop_item.html">
+    <ons-page>
+        <div class="content">
+			<p class="page_ttl">商品一覧</p>
+      
+      <ul id="cat_cheng">
+        <li data-mode="type" data-value="1"><img src="image/bnr_tee.jpg" alt="Tシャツ"></li>
+        <li data-mode="keyword" data-value="シャツ＆ポロシャツ"><img src="image/bnr_shirt.jpg" alt="シャツ＆ポロ"></li>
+        <li data-mode="kids" data-value=""><img src="image/bnr_kids.jpg" alt="キッズ"></li>
+      </ul>
+          
+      <div class="list_items" data-next="0" data-sort="dateval1" data-order="desc" data-mode="keyword" data-value="" data-mk="">
+      </div>
+          
+			<div class="loader item_loader"><div></div><div></div><div></div><br>商品データ取得中</div>
+			<div class="more_view" style="display: none;"><span>もっと見る</span></div>
+			
+		</div>
+   		<script>
+		$(function(){
+			
+			function getItems(){
+				
+				var itemlpp = 20; //一度に取得する商品の個数
+				var itemOffset = $(".list_items").attr("data-next"); //ページネーション
+				var itemSort = $(".list_items").attr("data-sort"); //ソート
+				var itemOrder = $(".list_items").attr("data-order"); //ソート
+				var itemMode = $(".list_items").attr("data-mode"); //モード
+				var itemVal = $(".list_items").attr("data-value"); //タイプ
+				var itemMk = $(".list_items").attr("data-mk"); //ブランド
+				
+        var url = 'https://www.t-shirt-ya.com/shop/itemListJSON.jsp?mk='+itemMk+'&mode='+itemMode+'&val='+itemVal+'&sort='+itemSort+'&order='+itemOrder+'&lpp='+itemlpp+'&pageStart='+itemOffset+'';
+        
+				$.ajax({
+					url: url, // ★
+					type:'GET',
+					dataType: 'json',
+					timeout:10000,
+				})
+				.done(function(data) {
+					for(var i in data){
+            var item_link = "fn.pushPage({'id': 'shop_item_detail.html', 'title': '" + data[i].productId + "'}, 'default')";
+            var price = data[i].prictIncTaxMin.toLocaleString();
+						$(".list_items").append(
+							'<div class="item">'+
+							'<a href="#" onclick="'+item_link+'">'+
+								'<div class="thumb"><img src="' + data[i].listImage + '" alt=""></div>'+
+								'<div class="detail">'+
+									'<p class="ttl">' + data[i].productName + '</p>'+
+									'<p class="price"><strong>¥ ' + price + '</strong> <span>税込</span></p>'+
+							'</div></a></div>'
+						);
+					}
+					
+					$(".item_loader").hide();
+					
+					//ページネーション上書き
+					var nextOffset = Number(itemOffset)+ Number(itemlpp);
+					$(".list_items").attr("data-next",nextOffset);
+
+					//商品数で分岐
+					if(data.length == 0) {
+						//0件だったら
+						$(".list_items").append("<div class='item non'>検索条件にあった商品はありません。<br>検索条件を見なおして再検索してください。</div>");
+						$(".more_view").hide();
+					} else if(data.length < itemlpp) {
+						//一度に取得する商品の個数より少なかったらもっと見るを隠す
+						$(".more_view").hide();
+					} else {
+						$(".more_view").show();
+					}
+					
+				})
+				.fail(function(data) {
+					$(".list_items").append("<div class='item non'>データが取得できませんでした</div>");
+					$(".item_loader").hide();
+				});
+				
+			}
+			
+			getItems();
+			
+			$(".more_view").click(function(){
+				$(".more_view").hide();
+				$(".item_loader").show();
+				getItems();	
+			});
+      
+      $('#cat_cheng li').click(function() {
+				$(".more_view").hide();
+				$(".item_loader").show();
+				$(".list_items").attr("data-next",0);
+				$(".list_items").attr("data-mode",$(this).attr("data-mode"));
+				$(".list_items").attr("data-value",$(this).attr("data-value"));
+				$(".list_items").attr("data-mk",$(this).attr("data-mk"));
+				$(".list_items .item").remove();
+				getItems();	
+			});
+						
+		});
+		</script>
+    </ons-page>
+</template>
+<!-- //shop_item--> 
+  
+<!-- shop_item_detail -->
+<template id="shop_item_detail.html">
+  <ons-page id="second-page">
+      <ons-toolbar>
+          <div class="left">
+              <ons-back-button></ons-back-button>
+          </div>
+          <div class="center">
+              <div class="logo"></div>
+
+          </div>
+      </ons-toolbar>
+      
+      <div class="shop_item_detail" data-id="">
+        <div id="thumb-h" class="slider-pro">
+          <div id="item_slide" class="sp-slides">
+          </div>
+          <div id="item_slide_thumb" class="sp-thumbnails">
+          </div>
+        </div>
+        <div class="item_detail">
+          <p id="makerName"></p>
+          <h3 id="productName"></h3>
+          <p class="price"><strong>￥<span id="price"></span></strong>（税込）</p>
+
+          <div id="comment"></div>
+        </div>
+      </div>
+    <script>
+      ons.getScriptPage().onInit = function () {
+        var itemID = this.data.title;
+        $(".shop_item_detail").attr("data-id", itemID);
+      }
+      
+      $(function(){
+          
+        function getDetail(){
+          var detailID = $(".shop_item_detail").attr("data-id");
+          console.log(detailID);
+          var url = 'https://www.t-shirt-ya.com/shop/itemDetailJSON.jsp?itemid='+detailID+'';
+          $.ajax({
+            url: url, // ★
+            type:'GET',
+            dataType: 'json',
+            timeout:10000,
+          })
+          .done(function(data) {
+            
+            for(var i in data){
+              for(var j in data[i].images){
+                $("#item_slide").append(
+                  '<div class="sp-slide"><img class="sp-image" src="' + data[i].images[j] + '" /></div>'
+                );
+                $("#item_slide_thumb").append(
+                  '<img class="sp-thumbnail" src="' + data[i].images[j] + '" />'
+                );
+              }
+              $("#makerName").html(data[i].makerName);
+              $("#productName").html(data[i].productName);
+              var price = data[i].price.toLocaleString();
+              $("#price").html(price);
+              
+              var comment = data[i].comment.replace(/\u005c/g,'');
+              $("#comment").html(comment);
+            }
+          })
+          .fail(function(data) {
+            $(".shop_item_detail").html("<p class='non'>データが取得できませんでした</p>");
+          });
+        }
+        setTimeout(function(){
+          getDetail();
+        },500);
+        setTimeout(function(){
+          $('#thumb-h').sliderPro({
+            autoHeight: true,
+            arrows: true,
+            buttons: false,//ナビゲーションボタン
+            thumbnailWidth: 70,//サムネイルの横幅
+            thumbnailHeight: 70,//サムネイルの縦幅
+            slideDistance:0,//スライド同士の距離
+          });
+          $(".shop_item_detail").css("opacity","1");
+        },2000);
+      });
+    </script>
+    </ons-page>
+</template>
+<!-- //shop_item_detail -->
+
+<!-- shop -->
+<template id="shop.html">
+    <ons-page>
+        <div class="content">
+			<p class="page_ttl">店舗一覧</p>
+            <div class="shop_list">
+                <div class="item" onclick="fn.pushPage({'id': 'shop_kokusai.html', 'title': '国際通り店'}, 'default')">
+                    <div class="thumb"><img src="image/shop_01.png" alt=""></div>
+                    <div class="detail">
+                        <p class="ttl">国際通り店</p>
+                        <p>沖縄県那覇市牧志3-1-8 2F</p>
+                    </div>
+                </div>
+                <div class="item" onclick="fn.pushPage({'id': 'shop_chatan.html', 'title': '北谷店'}, 'default')">
+                    <div class="thumb"><img src="image/shop_02.png" alt=""></div>
+                    <div class="detail">
+                        <p class="ttl">北谷店</p>
+                        <p>沖縄県北谷町美浜9-1<br>
+							デポアイランドビルC館1F</p>
+                    </div>
+                </div>
+                <div class="item" onclick="fn.pushPage({'id': 'shop_rycom.html', 'title': 'イオンモールライカム店'}, 'default')">
+
+                    <div class="thumb"><img src="image/shop_03.png" alt=""></div>
+                    <div class="detail">
+                        <p class="ttl">イオンモールライカム店</p>
+                        <p>沖縄県北中城村<br>
+							イオンモール沖縄ライカム3F 3021</p>
+                    </div>
+                </div>
+                <div class="item" onclick="fn.pushPage({'id': 'shop_kumoji.html', 'title': '久茂地店'}, 'default')">
+                    <div class="thumb"><img src="image/shop_04.png" alt=""></div>
+                    <div class="detail">
+
+                        <p class="ttl">久茂地店</p>
+                        <p>沖縄県那覇市久茂地3-5-15 (2F)</p>
+                    </div>
+                </div>
+                <div class="item" onclick="fn.pushPage({'id': 'shop_parco.html', 'title': 'パルコシティ店'}, 'default')">
+                    <div class="thumb"><img src="image/shop_05.png" alt=""></div>
+                    <div class="detail">
+
+                        <p class="ttl">パルコシティ店</p>
+                        <p>沖縄県浦添市西洲3-1-1 (1F)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </ons-page>
+</template>
+
+<!-- //shop --> 
+
+<!-- shop_detail -->
+<template id="shop_kokusai.html">
+    <ons-page>
+        <ons-toolbar>
+            <div class="left">
+                <ons-back-button></ons-back-button>
+            </div>
+            <div class="center">
+                <div class="logo"></div>
+
+            </div>
+        </ons-toolbar>
+        <div class="content shop_detail">
+        	<div class="image"><img src="image/shop_01_01.jpg"></div>
+        	<p class="fsr12">2005年3月に1号店としてオープンしたT-SHIRT-YA.COM国際通り店です。平和通りの入口の「ウェルカムシーサー」の看板が目印です。<br>
+            他店より選りすぐりの商品展開で、皆さまのご来店をお待ちしてます。前ハピナハ（元三越）の道向かい。階段からお2階へどうぞ♪</p>
+        	
+        	<iframe src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d3579.394940590382!2d127.688765!3d26.216354!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0xb3f474788f234b73!2z77y04oiS77yz77yo77yp77yy77y04oiS77y577yh77yO77yj77yv77yt!5e0!3m2!1sja!2sjp!4v1409568993229" width="100%" height="100%" frameborder="0" style="border:0"></iframe>
+        	
+        	<p class="mgb10">住所<br>
+			<strong>沖縄県那覇市牧志3-1-8 2F</strong></p>
+			
+			<p class="mgb10">電話番号<br>
+			<strong><a href="tel:0988602830">098-860-2830</a></strong></p>
+			
+			<p class="mgb10">営業時間<br>
+			<strong>11:00～22:00<br>
+			年中無休(正月を除く)</strong></p>
+        	
+		</div>
+    </ons-page>
+</template>
+<!-- //shop_detail -->
+	
+<!-- shop_detail -->
+<template id="shop_chatan.html">
+    <ons-page>
+        <ons-toolbar>
+            <div class="left">
+                <ons-back-button></ons-back-button>
+            </div>
+            <div class="center">
+                <div class="logo"></div>
+            </div>
+        </ons-toolbar>
+        <div class="content shop_detail">
+        	<div class="image"><img src="image/shop_02_01.jpg"></div>
+        	<p class="fsr12">北谷町美浜デポアイランドの時計台真下にある、T-SHIRT-YA.COM第2号店です。4店舗の中で最も大きく、品揃えも豊富。どこの店舗よりも充実してます。<br>
+            夕日が綺麗な海や、海岸沿いのカフェ・バルなど、見どころが多い北谷美浜に是非お越しください！</p>
+        	
+        	<iframe src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d28611.547017917943!2d127.7836591576731!3d26.312138873974288!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x4439b6fa58cafd18!2zVOOCt-ODo-ODhOWxi-ODieODg-ODiOOCs-ODoOWMl-iwt-W6lw!5e0!3m2!1sja!2sjp!4v1409894605901" width="100%" height="100%" frameborder="0" style="border:0"></iframe>
+        	
+        	<p class="mgb10">住所<br>
+			<strong>沖縄県北谷町美浜9-1 デポアイランドビルC館1F</strong></p>
+			
+			<p class="mgb10">電話番号<br>
+			<a href="tel:0989895581"><strong>098-989-5581</strong></a></p>
+			
+			<p class="mgb10">営業時間<br>
+				<strong>10:00～21:00<br>
+			年中無休(正月を除く)</strong></p>
+        	
+		</div>
+    </ons-page>
+</template>
+<!-- //shop_detail -->
+	
+<!-- shop_detail -->
+<template id="shop_rycom.html">
+    <ons-page>
+        <ons-toolbar>
+            <div class="left">
+                <ons-back-button></ons-back-button>
+            </div>
+            <div class="center">
+                <div class="logo"></div>
+            </div>
+        </ons-toolbar>
+        <div class="content shop_detail">
+        	<div class="image"><img src="image/shop_03_01.jpg"></div>
+        	<p class="fsr12">2015年に沖縄県内で第3号店としてオープン。<br>
+            Tシャツ・ポロシャツ・キッズ商品、限定グッズののほか、沖縄ならではの、かりゆしウェア(NANTEN uraraka）も他店に比べて充実しています。<br>
+            ショッピングモール内なので、シネコンやレストラン・フードコートもあり、連日にぎわっています。<br>
+            皆様のご来店お待ちしております。</p>
+        	
+        	<iframe src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d7152.756978302477!2d127.795685!3d26.314241!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x20c8c30b21a373ce!2z44Kk44Kq44Oz44Oi44O844Or5rKW57iE44Op44Kk44Kr44Og!5e0!3m2!1sja!2sjp!4v1429592997313" width="100%" height="100%" frameborder="0" style="border:0"></iframe>
+        	
+        	<p class="mgb10">住所<br>
+			<strong>沖縄県北中城村 イオンモール沖縄ライカム3F 3021</strong></p>
+			
+			<p class="mgb10">電話番号<br>
+			<a href="tel:0989235783"><strong>098-923-5783</strong></a></p>
+			
+			<p class="mgb10">営業時間<br>
+				<strong>10:00～22:00<br>
+			年中無休</strong></p>
+        	
+		</div>
+    </ons-page>
+</template>
+<!-- //shop_detail -->
+	
+<!-- shop_detail -->
+<template id="shop_kumoji.html">
+    <ons-page>
+        <ons-toolbar>
+            <div class="left">
+                <ons-back-button></ons-back-button>
+            </div>
+            <div class="center">
+                <div class="logo"></div>
+            </div>
+        </ons-toolbar>
+        <div class="content shop_detail">
+        	<div class="image"><img src="image/shop_04_01.jpg"></div>
+        	<p class="fsr12">2017年に沖縄県内4号店としてオープン。国際通りの入口、久茂地にあります。白いサインが目印です。<br>
+            階段をのぼるとレトロな雰囲気の内装に、オリジナル商品が並んでいます。<br>
+            皆様のご来店をお待ちしております。</p>
+        	
+        	<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3579.440553680223!2d127.68107895114272!3d26.214867783351725!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x34e56977a4d850bf%3A0x5c38699f62578df2!2z44CSOTAwLTAwMTUg5rKW57iE55yM6YKj6KaH5biC5LmF6IyC5Zyw77yT5LiB55uu77yV4oiS77yR77yV!5e0!3m2!1sja!2sjp!4v1485253242216" width="100%" height="100%" frameborder="0" style="border:0" allowfullscreen></iframe>
+        	
+        	<p class="mgb10">住所<br>
+			<strong>沖縄県那覇市久茂地3-5-15 (2F)</strong></p>
+			
+			<p class="mgb10">電話番号<br>
+			<a href="tel:0988693227"><strong>098-869-3227</strong></a></p>
+			
+			<p class="mgb10">営業時間<br>
+				<strong>11:00～22:00<br>
+			年中無休（正月を除く）</strong></p>
+        	
+		</div>
+    </ons-page>
+</template>
+<!-- //shop_detail -->
+  
+<!-- shop_detail -->
+<template id="shop_parco.html">
+    <ons-page>
+        <ons-toolbar>
+            <div class="left">
+                <ons-back-button></ons-back-button>
+            </div>
+            <div class="center">
+                <div class="logo"></div>
+            </div>
+        </ons-toolbar>
+        <div class="content shop_detail">
+        	<div class="image"><img src="image/shop_05_01.jpg"></div>
+        	<p class="fsr12">2019年に沖縄県内5号店としてオープン。<br>
+            解放感のある天井が高めの店内に、いままでの店舗にはないシックさを兼ね備えたリピーター様にもワクワクの新店舗となります！！<br>
+            皆様のご来店をお待ちしております。</p>
+          
+          <iframe src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d14311.986616300754!2d127.697852!3d26.261772!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x68e2e0ed51f3ac6c!2sT-SHIRT-YA.COM+PARCO+CITY%E5%BA%97!5e0!3m2!1sja!2sjp!4v1563421385225!5m2!1sja!2sjp" width="100%" height="100%" frameborder="0" style="border:0" allowfullscreen></iframe>
+        	
+        	<p class="mgb10">住所<br>
+          <strong>沖縄県浦添市西洲3-1-1 (1F)</strong></p>
+
+          <p class="mgb10">電話番号<br>
+          <a href="tel:0989876930"><strong>098-987-6930</strong></a></p>
+
+          <p class="mgb10">営業時間<br>
+            <strong>10:00～22:00<br>
+          年中無休</strong></p>
+        	
+		</div>
+    </ons-page>
+</template>
+<!-- //shop_detail -->
+
+<!-- news -->
+<template id="news.html">
+    <ons-page>
+		<div class="content">
+			<p class="page_ttl">お知らせ一覧</p>
+			<div class="list_news">
+      </div>
+      <div class="loader news_loader"><div></div><div></div><div></div><br>お知らせ情報取得中</div>
+		</div>
+        <script>
+		$(function(){
+			
+			$.ajax({
+				url: 'https://www.t-shirt-ya.com/topicsListJSON.jsp', // ★
+				type:'GET',
+				dataType: 'json',
+				timeout:10000,
+			})
+			.done(function(data) {
+				for(var i in data){
+					var item_link = "'"+ data[i].detailUrl+"'";
+					$(".list_news").append(
+						'<dl>'+
+						'<a href="#" onclick="fn.loadLink('+item_link+')">'+
+
+							'<dt>' + data[i].date + '</dt>'+
+							'<dd>' + data[i].title + '</dd>'+
+						'</a></dl>'
+					);
+				}
+        $(".news_loader").hide();
+			})
+			.fail(function(data) {
+				alert("通信に失敗しました");
+        $(".list_news").append('データが取得できませんでした。');
+        $(".news_loader").hide();
+			});
+			
+		});
+		</script>
+    </ons-page>
+</template>
+<!-- //news -->
+
+<!-- coupon -->
+<template id="coupon.html">
+    <ons-page>
+        <div class="content">
+			<p class="page_ttl">クーポン一覧</p>
+      <div class="js_coupon-iframe" style="height:100%;"></div>
+		</div>
+    <script>
+      $(function(){
+        var dt = new Date();
+        var y = dt.getFullYear();
+        var m = ("00" + (dt.getMonth()+1)).slice(-2);
+        var d = ("00" + dt.getDate()).slice(-2);
+        var result = y+m+d;
+        
+        console.log(result);
+
+        $(".js_coupon-iframe").html('<iframe src="https://www.t-shirt-ya.com/app_file/coupon.html?='+result+'" width="100%" height="100%" frameborder="0"></iframe>');
+      });
+    </script>
+    </ons-page>
+</template>
+<!-- //coupon -->
+
+</body>
+</html>
